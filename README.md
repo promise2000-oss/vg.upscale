@@ -172,7 +172,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <div align="center">
-  <p>Created by Promise Shedrack Power</p>
+  <p>Created by Promise Shedrack Powered by REAL-ESGRAN</p>
   <img src="https://img.shields.io/badge/Made%20with-React-61dafb?style=flat-square&logo=react" alt="Made with React" />
   <img src="https://img.shields.io/badge/Powered%20by-AI-ff6b6b?style=flat-square&logo=ai&logoColor=white" alt="Powered by AI" />
 </div>
