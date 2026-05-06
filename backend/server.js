@@ -38,6 +38,31 @@ try {
   console.warn("Favicon file not found in ./public/favicon.ico");
 }
 
+const binModelDir = path.resolve(__dirname, "bin", "models");
+
+function ensureBinModelSymlink() {
+  try {
+    const stats = fs.lstatSync(binModelDir);
+    if (stats.isSymbolicLink()) {
+      const currentTarget = fs.readlinkSync(binModelDir);
+      const resolvedTarget = path.resolve(__dirname, currentTarget);
+      if (resolvedTarget !== path.resolve(__dirname, "models")) {
+        fs.unlinkSync(binModelDir);
+        fs.symlinkSync(path.resolve(__dirname, "models"), binModelDir, "dir");
+      }
+    } else if (!stats.isDirectory()) {
+      fs.rmSync(binModelDir, { recursive: true, force: true });
+      fs.symlinkSync(path.resolve(__dirname, "models"), binModelDir, "dir");
+    }
+  } catch (e) {
+    if (e.code === "ENOENT") {
+      fs.symlinkSync(path.resolve(__dirname, "models"), binModelDir, "dir");
+    } else {
+      throw e;
+    }
+  }
+}
+
 app.post("/upscale", upload.single("image"), (req, res) => {
   if (!req.file) {
     return res.status(400).send("No image uploaded");
@@ -47,6 +72,8 @@ app.post("/upscale", upload.single("image"), (req, res) => {
   const outputDir = path.resolve(__dirname, "outputs");
   const modelDir = path.resolve(__dirname, "models");
   const binPath = path.resolve(__dirname, "bin", "upscayl-bin");
+
+  ensureBinModelSymlink();
 
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
@@ -60,7 +87,7 @@ app.post("/upscale", upload.single("image"), (req, res) => {
   const args = [
     "-i", inputPath,
     "-o", outputPath,
-    "-s", "2",
+    "-s", "4",
     "-m", modelDir,
     "-n", "upscayl-standard-4x",
     "-v",
