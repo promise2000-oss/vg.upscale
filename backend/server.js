@@ -73,6 +73,8 @@ app.post("/upscale", upload.single("image"), (req, res) => {
   const modelDir = path.resolve(__dirname, "models");
   const binPath = path.resolve(__dirname, "bin", "upscayl-bin");
 
+  const scale = Math.min(Math.max(parseInt(req.body.scale, 10) || 4, 2), 4);
+
   ensureBinModelSymlink();
 
   if (!fs.existsSync(outputDir)) {
@@ -87,7 +89,7 @@ app.post("/upscale", upload.single("image"), (req, res) => {
   const args = [
     "-i", inputPath,
     "-o", outputPath,
-    "-s", "4",
+    "-s", String(scale),
     "-m", modelDir,
     "-n", "upscayl-standard-4x",
     "-v",

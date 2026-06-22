@@ -1,12 +1,15 @@
 import axios from "axios";
 import { FormEvent, ChangeEvent, useMemo, useState, useEffect } from "react";
 
+type Scale = 2 | 3 | 4;
+
 function App() {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [resultUrl, setResultUrl] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
+  const [scale, setScale] = useState<Scale>(4);
 
   const fileName = useMemo(() => file?.name ?? "No file selected", [file]);
 
@@ -39,6 +42,7 @@ function App() {
 
     const formData = new FormData();
     formData.append("image", file);
+    formData.append("scale", String(scale));
 
     try {
       console.log("Uploading image:", file.name, "Size:", file.size);
@@ -122,6 +126,34 @@ function App() {
             </p>
           </label>
 
+          <fieldset>
+            <legend className="mb-3 text-sm font-medium text-slate-300">
+              Output resolution
+            </legend>
+            <div className="grid grid-cols-3 gap-2">
+              {([2, 3, 4] as Scale[]).map((s) => (
+                <label
+                  key={s}
+                  className={`flex cursor-pointer items-center justify-center rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
+                    scale === s
+                      ? "border-sky-500 bg-sky-500/20 text-sky-300"
+                      : "border-slate-800 bg-slate-950/70 text-slate-400 hover:border-slate-600"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="scale"
+                    value={s}
+                    checked={scale === s}
+                    onChange={() => setScale(s)}
+                    className="sr-only"
+                  />
+                  {s === 2 ? "2K" : s === 3 ? "4K" : "8K"}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-3xl border border-slate-800 bg-slate-950/70 p-4 text-sm text-slate-300">
               <p className="font-medium text-slate-100">Selected image</p>
@@ -171,7 +203,7 @@ function App() {
 
               <button
                 onClick={downloadImage}
-                className="mt-4 inline-flex rounded-3xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-white"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-3xl bg-emerald-500 px-6 py-3 text-base font-semibold text-slate-950 transition hover:bg-emerald-400"
               >
                 Download PNG
               </button>
