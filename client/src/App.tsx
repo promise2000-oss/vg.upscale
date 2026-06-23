@@ -1,5 +1,7 @@
 import axios from "axios";
-import { FormEvent, ChangeEvent, useMemo, useState, useEffect } from "react";
+import { FormEvent, ChangeEvent, useMemo, useState } from "react";
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
 
 type Scale = 2 | 3 | 4;
 
@@ -47,7 +49,7 @@ function App() {
     try {
       console.log("Uploading image:", file.name, "Size:", file.size);
 
-      const response = await axios.post("/upscale", formData, {
+      const response = await axios.post(`${BASE_URL}/upscale`, formData, {
         responseType: "blob",
         headers: {
           "Content-Type": "multipart/form-data",
@@ -68,16 +70,22 @@ function App() {
       let message = "Unable to upload image.";
 
       if (axios.isAxiosError(err)) {
-        message =
-          err.response?.data?.message ||
-          err.response?.data ||
-          err.message;
+        const data = err.response?.data;
+        if (data instanceof Blob) {
+          message = await data.text();
+        } else if (typeof data === "string") {
+          message = data;
+        } else if (data?.message) {
+          message = data.message;
+        } else {
+          message = err.message;
+        }
       } else if (err instanceof Error) {
         message = err.message;
       }
 
       console.error("Upload error:", message);
-      setError(typeof message === "string" ? message : JSON.stringify(message));
+      setError(message);
     } finally {
       setLoading(false);
     }

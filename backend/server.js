@@ -1,4 +1,5 @@
 const express = require("express");
+const cors = require("cors");
 const multer = require("multer");
 const { execFile } = require("child_process");
 const path = require("path");
@@ -8,59 +9,33 @@ const favicon = require("serve-favicon");
 const app = express();
 const upload = multer({ dest: "uploads/" });
 
-/**
- * ✅ FIXED CSP MIDDLEWARE
- * Replaced the local file path with 'self'.
- * Added 'blob:' and 'data:' to img-src to support upscaled image previews.
- */
-app.use((req, res, next) => {
-  const devServerOrigin = "http://localhost:5173";
-  const devServerWs = "ws://localhost:5173";
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:4173",
+];
 
+app.use(cors({ origin: allowedOrigins }));
+
+app.use((req, res, next) => {
   res.setHeader(
     "Content-Security-Policy",
     [
-      "default-src 'self'", // Changed from '/home/promise-shedrack' to 'self'
-      `connect-src 'self' ${devServerOrigin} ${devServerWs}`,
-      "img-src 'self' blob: data:", 
-      `script-src 'self' 'unsafe-eval' ${devServerOrigin}`, // Added 'unsafe-eval' often needed for React dev
-      `style-src 'self' 'unsafe-inline' ${devServerOrigin}`,
+      "default-src 'self'",
+      "connect-src 'self'",
+      "img-src 'self' blob: data:",
+      "script-src 'self' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
       "font-src 'self'",
     ].join("; ")
   );
   next();
 });
-// Serve static assets from public folder (for uploads, outputs, etc.)
+
 app.use(express.static(path.join(__dirname, "public")));
 try {
   app.use(favicon(path.join(__dirname, "public", "favicon.ico")));
 } catch (e) {
   console.warn("Favicon file not found in ./public/favicon.ico");
-}
-
-const binModelDir = path.resolve(__dirname, "bin", "models");
-
-function ensureBinModelSymlink() {
-  try {
-    const stats = fs.lstatSync(binModelDir);
-    if (stats.isSymbolicLink()) {
-      const currentTarget = fs.readlinkSync(binModelDir);
-      const resolvedTarget = path.resolve(__dirname, currentTarget);
-      if (resolvedTarget !== path.resolve(__dirname, "models")) {
-        fs.unlinkSync(binModelDir);
-        fs.symlinkSync(path.resolve(__dirname, "models"), binModelDir, "dir");
-      }
-    } else if (!stats.isDirectory()) {
-      fs.rmSync(binModelDir, { recursive: true, force: true });
-      fs.symlinkSync(path.resolve(__dirname, "models"), binModelDir, "dir");
-    }
-  } catch (e) {
-    if (e.code === "ENOENT") {
-      fs.symlinkSync(path.resolve(__dirname, "models"), binModelDir, "dir");
-    } else {
-      throw e;
-    }
-  }
 }
 
 app.post("/upscale", upload.single("image"), (req, res) => {
@@ -75,16 +50,11 @@ app.post("/upscale", upload.single("image"), (req, res) => {
 
   const scale = Math.min(Math.max(parseInt(req.body.scale, 10) || 4, 2), 4);
 
-  ensureBinModelSymlink();
-
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const outputPath = path.join(
-    outputDir,
-    `output-${Date.now()}.png`
-  );
+  const outputPath = path.join(outputDir, `output-${Date.now()}.png`);
 
   const args = [
     "-i", inputPath,
@@ -92,32 +62,32 @@ app.post("/upscale", upload.single("image"), (req, res) => {
     "-s", String(scale),
     "-m", modelDir,
     "-n", "upscayl-standard-4x",
-    "-v",
+    "-g", "1",
   ];
 
   console.log("Running upscaler:", binPath, args.join(" "));
 
-  execFile(binPath, args, (err, stdout, stderr) => {
-    if (stdout) {
-      console.log("Upscaler stdout:", stdout);
-    }
-    if (stderr) {
-      console.warn("Upscaler stderr:", stderr);
-    }
-    if (err) {
-      console.error("Upscaling error:", err);
-      return res.status(500).send("Upscaling failed");
-    }
-
-    res.sendFile(outputPath, (err) => {
+  try {
+    execFile(binPath, args, (err, stdout, stderr) => {
+      if (stdout) console.log("Upscaler stdout:", stdout);
+      if (stderr) console.warn("Upscaler stderr:", stderr);
       if (err) {
-        console.error("SendFile error:", err);
-        res.status(500).send("Failed to send image");
+        console.error("Upscaling error:", err);
+        return res.status(500).send("Upscaling failed");
       }
-      // Optional: clean up input file after processing
-      fs.unlinkSync(inputPath);
+
+      res.sendFile(outputPath, (sendErr) => {
+        if (sendErr) {
+          console.error("SendFile error:", sendErr);
+          return res.status(500).send("Failed to send image");
+        }
+        fs.unlinkSync(inputPath);
+      });
     });
-  });
+  } catch (err) {
+    console.error("Failed to start upscaler:", err);
+    res.status(500).send("Upscaling failed");
+  }
 });
 
 app.listen(3000, () => {
