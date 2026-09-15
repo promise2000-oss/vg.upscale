@@ -100,14 +100,22 @@ app.post("/upscale", upload.single("image"), async (req, res) => {
     });
 
   const runCpuUpscale = async () => {
-    console.log("Falling back to CPU upscaling with sharp");
+    console.log("Falling back to CPU upscaling with sharp (enhanced pipeline)");
     const metadata = await sharp(inputPath).metadata();
     const newWidth = metadata.width * scale;
     const newHeight = metadata.height * scale;
+
     await sharp(inputPath)
-      .resize(newWidth, newHeight, { kernel: sharp.kernel.lanczos3 })
-      .png()
+      .resize(newWidth, newHeight, {
+        kernel: sharp.kernel.lanczos3,
+        fit: "fill",
+      })
+      .sharpen({ sigma: 1.2, m1: 1.5, m2: 0.5 })
+      .normalise()
+      .modulate({ brightness: 1.02, contrast: 1.05 })
+      .png({ quality: 100 })
       .toFile(outputPath);
+
     return outputPath;
   };
 
