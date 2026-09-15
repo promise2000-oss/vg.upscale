@@ -14,6 +14,7 @@ const upload = multer({ dest: "uploads/" });
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:4173",
+  "https://vg-upscale.vercel.app",
 ];
 
 app.use(cors({ origin: allowedOrigins }));
