@@ -9,19 +9,6 @@ const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger.json");
 const { cpuUpscale } = require("./lib/upscale-cpu");
 
-let onnxUpscale = null;
-try {
-  if (process.env.USE_ONNX === "true") {
-    const mod = require("./lib/upscale-onnx");
-    onnxUpscale = mod.onnxUpscale;
-    console.log("ONNX upscaler loaded successfully");
-  } else {
-    console.log("ONNX disabled (set USE_ONNX=true to enable)");
-  }
-} catch (e) {
-  console.warn("ONNX upscaler unavailable:", e.message);
-}
-
 const app = express();
 const upload = multer({ dest: "uploads/" });
 
@@ -67,27 +54,6 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
 
 app.get("/api-docs.json", (req, res) => {
   res.json(swaggerDocument);
-});
-
-app.get("/status", async (req, res) => {
-  const fs = require("fs");
-  const modelPath = path.join(__dirname, "models", "RealESRGAN_x4plus.onnx");
-  const modelExists = fs.existsSync(modelPath);
-  const modelSize = modelExists ? fs.statSync(modelPath).size : 0;
-
-  let onnxReady = false;
-  try {
-    onnxReady = onnxUpscale !== null;
-  } catch (e) {
-    onnxReady = false;
-  }
-
-  res.json({
-    onnxModelExists: modelExists,
-    onnxModelSize: modelSize,
-    onnxModuleLoadable: onnxReady,
-    nodeModules: fs.existsSync(path.join(__dirname, "node_modules", "onnxruntime-node")),
-  });
 });
 
 app.post("/upscale", upload.single("image"), async (req, res) => {
@@ -138,25 +104,14 @@ app.post("/upscale", upload.single("image"), async (req, res) => {
     return cpuUpscale(inputPath, outputPath, scale);
   };
 
-  const runOnnxUpscale = async () => {
-    if (!onnxUpscale) throw new Error("ONNX not available");
-    console.log("Running ONNX Real-ESRGAN upscaling");
-    return onnxUpscale(inputPath, outputPath, scale);
-  };
-
   try {
     await runGpuUpscale();
   } catch (gpuErr) {
     try {
-      await runOnnxUpscale();
-    } catch (onnxErr) {
-      console.error("ONNX upscaler failed:", onnxErr.message);
-      try {
-        await runCpuUpscale();
-      } catch (cpuErr) {
-        console.error("CPU upscaling also failed:", cpuErr.message);
-        return res.status(500).send("Upscaling failed");
-      }
+      await runCpuUpscale();
+    } catch (cpuErr) {
+      console.error("CPU upscaling failed:", cpuErr.message);
+      return res.status(500).send("Upscaling failed");
     }
   }
 
