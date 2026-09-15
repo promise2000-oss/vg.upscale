@@ -3,6 +3,7 @@ FROM node:20-slim
 RUN apt-get update && apt-get install -y \
   libvulkan1 \
   mesa-vulkan-drivers \
+  curl \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/render/project/src
@@ -11,6 +12,8 @@ COPY backend/package*.json ./backend/
 RUN cd backend && npm install
 
 COPY backend ./backend
+
+RUN chmod +x backend/bin/upscayl-bin || true
 
 EXPOSE 3000
 
