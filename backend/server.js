@@ -89,8 +89,10 @@ app.post("/upscale", upload.single("image"), (req, res) => {
       if (stdout) console.log("Upscaler stdout:", stdout);
       if (stderr) console.warn("Upscaler stderr:", stderr);
       if (err) {
-        console.error("Upscaling error:", err);
-        return res.status(500).send("Upscaling failed");
+        console.error("Upscaling error:", err.message);
+        console.error("Upscaling error code:", err.code);
+        console.error("Upscaling error signal:", err.signal);
+        return res.status(500).send(`Upscaling failed: ${err.message}`);
       }
 
       res.sendFile(outputPath, (sendErr) => {
