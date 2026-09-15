@@ -57,6 +57,28 @@ app.get("/api-docs.json", (req, res) => {
   res.json(swaggerDocument);
 });
 
+app.get("/status", async (req, res) => {
+  const fs = require("fs");
+  const modelPath = path.join(__dirname, "models", "RealESRGAN_x4plus.onnx");
+  const modelExists = fs.existsSync(modelPath);
+  const modelSize = modelExists ? fs.statSync(modelPath).size : 0;
+
+  let onnxReady = false;
+  try {
+    const { onnxUpscale } = require("./lib/upscale-onnx");
+    onnxReady = true;
+  } catch (e) {
+    onnxReady = false;
+  }
+
+  res.json({
+    onnxModelExists: modelExists,
+    onnxModelSize: modelSize,
+    onnxModuleLoadable: onnxReady,
+    nodeModules: fs.existsSync(path.join(__dirname, "node_modules", "onnxruntime-node")),
+  });
+});
+
 app.post("/upscale", upload.single("image"), async (req, res) => {
   if (!req.file) {
     return res.status(400).send("No image uploaded");
