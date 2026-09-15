@@ -5,6 +5,8 @@ const { execFile } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const favicon = require("serve-favicon");
+const swaggerUi = require("swagger-ui-express");
+const swaggerDocument = require("./swagger.json");
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -37,6 +39,15 @@ try {
 } catch (e) {
   console.warn("Favicon file not found in ./public/favicon.ico");
 }
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+  customCss: ".swagger-ui .topbar { display: none }",
+  customSiteTitle: "VG Upscale API Documentation",
+}));
+
+app.get("/api-docs.json", (req, res) => {
+  res.json(swaggerDocument);
+});
 
 app.post("/upscale", upload.single("image"), (req, res) => {
   if (!req.file) {

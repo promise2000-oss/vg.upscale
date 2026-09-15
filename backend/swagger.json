@@ -1,0 +1,126 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "VG Upscale API",
+    "description": "AI-powered image upscaling API using Real-ESRGAN models. Upload an image to upscale it using various AI models.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "VG Upscale"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/upscale": {
+      "post": {
+        "tags": ["Upscaling"],
+        "summary": "Upscale an image",
+        "description": "Upload an image to upscale it using Real-ESRGAN AI models. Supports scale factors of 2x, 3x, and 4x.",
+        "operationId": "upscaleImage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["image"],
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "The image file to upscale (PNG, JPG, etc.)"
+                  },
+                  "scale": {
+                    "type": "string",
+                    "enum": ["2", "3", "4"],
+                    "default": "4",
+                    "description": "Upscale factor (2, 3, or 4). Defaults to 4."
+                  }
+                }
+              },
+              "encoding": {
+                "image": {
+                  "contentType": "image/png, image/jpeg, image/webp"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successfully upscaled image",
+            "content": {
+              "image/png": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No image uploaded",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "No image uploaded"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Upscaling failed",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string",
+                  "example": "Upscaling failed"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {},
+    "requestBodies": {
+      "UpscaleRequest": {
+        "required": true,
+        "content": {
+          "multipart/form-data": {
+            "schema": {
+              "type": "object",
+              "required": ["image"],
+              "properties": {
+                "image": {
+                  "type": "string",
+                  "format": "binary",
+                  "description": "The image file to upscale"
+                },
+                "scale": {
+                  "type": "string",
+                  "enum": ["2", "3", "4"],
+                  "default": "4",
+                  "description": "Upscale factor"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Upscaling",
+      "description": "Image upscaling operations"
+    }
+  ]
+}
