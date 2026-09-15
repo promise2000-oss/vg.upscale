@@ -7,6 +7,7 @@ const fs = require("fs");
 const favicon = require("serve-favicon");
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger.json");
+const sharp = require("sharp");
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -55,7 +56,7 @@ app.get("/api-docs.json", (req, res) => {
   res.json(swaggerDocument);
 });
 
-app.post("/upscale", upload.single("image"), (req, res) => {
+app.post("/upscale", upload.single("image"), async (req, res) => {
   if (!req.file) {
     return res.status(400).send("No image uploaded");
   }
@@ -73,6 +74,8 @@ app.post("/upscale", upload.single("image"), (req, res) => {
 
   const outputPath = path.join(outputDir, `output-${Date.now()}.png`);
 
+  console.log("Running upscaler:", binPath, `-s ${scale}`);
+
   const args = [
     "-i", inputPath,
     "-o", outputPath,
@@ -82,31 +85,50 @@ app.post("/upscale", upload.single("image"), (req, res) => {
     "-g", "1",
   ];
 
-  console.log("Running upscaler:", binPath, args.join(" "));
-
-  try {
-    execFile(binPath, args, (err, stdout, stderr) => {
-      if (stdout) console.log("Upscaler stdout:", stdout);
-      if (stderr) console.warn("Upscaler stderr:", stderr);
-      if (err) {
-        console.error("Upscaling error:", err.message);
-        console.error("Upscaling error code:", err.code);
-        console.error("Upscaling error signal:", err.signal);
-        return res.status(500).send(`Upscaling failed: ${err.message}`);
-      }
-
-      res.sendFile(outputPath, (sendErr) => {
-        if (sendErr) {
-          console.error("SendFile error:", sendErr);
-          return res.status(500).send("Failed to send image");
+  const runGpuUpscale = () =>
+    new Promise((resolve, reject) => {
+      execFile(binPath, args, (err, stdout, stderr) => {
+        if (stdout) console.log("Upscaler stdout:", stdout);
+        if (stderr) console.warn("Upscaler stderr:", stderr);
+        if (err) {
+          console.error("GPU upscaler failed:", err.message);
+          reject(err);
+        } else {
+          resolve(outputPath);
         }
-        fs.unlinkSync(inputPath);
       });
     });
-  } catch (err) {
-    console.error("Failed to start upscaler:", err);
-    res.status(500).send("Upscaling failed");
+
+  const runCpuUpscale = async () => {
+    console.log("Falling back to CPU upscaling with sharp");
+    const metadata = await sharp(inputPath).metadata();
+    const newWidth = metadata.width * scale;
+    const newHeight = metadata.height * scale;
+    await sharp(inputPath)
+      .resize(newWidth, newHeight, { kernel: sharp.kernel.lanczos3 })
+      .png()
+      .toFile(outputPath);
+    return outputPath;
+  };
+
+  try {
+    await runGpuUpscale();
+  } catch (gpuErr) {
+    try {
+      await runCpuUpscale();
+    } catch (cpuErr) {
+      console.error("CPU upscaling also failed:", cpuErr.message);
+      return res.status(500).send("Upscaling failed");
+    }
   }
+
+  res.sendFile(outputPath, (sendErr) => {
+    if (sendErr) {
+      console.error("SendFile error:", sendErr);
+      return res.status(500).send("Failed to send image");
+    }
+    fs.unlinkSync(inputPath);
+  });
 });
 
 app.listen(3000, () => {
