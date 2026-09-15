@@ -17,7 +17,12 @@ const allowedOrigins = [
   "https://vg-upscale.vercel.app",
 ];
 
-app.use(cors({ origin: allowedOrigins }));
+app.use(cors({
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Accept"],
+  credentials: true,
+}));
 
 app.use((req, res, next) => {
   res.setHeader(
