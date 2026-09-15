@@ -8,7 +8,15 @@ const favicon = require("serve-favicon");
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger.json");
 const { cpuUpscale } = require("./lib/upscale-cpu");
-const { onnxUpscale } = require("./lib/upscale-onnx");
+
+let onnxUpscale = null;
+try {
+  const mod = require("./lib/upscale-onnx");
+  onnxUpscale = mod.onnxUpscale;
+  console.log("ONNX upscaler loaded successfully");
+} catch (e) {
+  console.warn("ONNX upscaler unavailable:", e.message);
+}
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -65,8 +73,7 @@ app.get("/status", async (req, res) => {
 
   let onnxReady = false;
   try {
-    const { onnxUpscale } = require("./lib/upscale-onnx");
-    onnxReady = true;
+    onnxReady = onnxUpscale !== null;
   } catch (e) {
     onnxReady = false;
   }
@@ -128,6 +135,7 @@ app.post("/upscale", upload.single("image"), async (req, res) => {
   };
 
   const runOnnxUpscale = async () => {
+    if (!onnxUpscale) throw new Error("ONNX not available");
     console.log("Running ONNX Real-ESRGAN upscaling");
     return onnxUpscale(inputPath, outputPath, scale);
   };
