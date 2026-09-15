@@ -8,6 +8,7 @@ const favicon = require("serve-favicon");
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger.json");
 const { cpuUpscale } = require("./lib/upscale-cpu");
+const { onnxUpscale } = require("./lib/upscale-onnx");
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -104,14 +105,24 @@ app.post("/upscale", upload.single("image"), async (req, res) => {
     return cpuUpscale(inputPath, outputPath, scale);
   };
 
+  const runOnnxUpscale = async () => {
+    console.log("Running ONNX Real-ESRGAN upscaling");
+    return onnxUpscale(inputPath, outputPath, scale);
+  };
+
   try {
     await runGpuUpscale();
   } catch (gpuErr) {
     try {
-      await runCpuUpscale();
-    } catch (cpuErr) {
-      console.error("CPU upscaling also failed:", cpuErr.message);
-      return res.status(500).send("Upscaling failed");
+      await runOnnxUpscale();
+    } catch (onnxErr) {
+      console.error("ONNX upscaler failed:", onnxErr.message);
+      try {
+        await runCpuUpscale();
+      } catch (cpuErr) {
+        console.error("CPU upscaling also failed:", cpuErr.message);
+        return res.status(500).send("Upscaling failed");
+      }
     }
   }
 
