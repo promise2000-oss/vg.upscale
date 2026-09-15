@@ -1,9 +1,5 @@
-import axios from "axios";
 import { FormEvent, ChangeEvent, useMemo, useState } from "react";
-
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "";
-
-type Scale = 2 | 3 | 4;
+import { upscaleImage, extractErrorMessage, type Scale } from "./services/upscale";
 
 function App() {
   const [file, setFile] = useState<File | null>(null);
@@ -42,48 +38,16 @@ function App() {
     setError("");
     setResultUrl("");
 
-    const formData = new FormData();
-    formData.append("image", file);
-    formData.append("scale", String(scale));
-
     try {
       console.log("Uploading image:", file.name, "Size:", file.size);
 
-      const response = await axios.post(`${BASE_URL}/upscale`, formData, {
-        responseType: "blob",
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      const blob = response.data;
-
-      if (!blob || blob.size === 0) {
-        throw new Error("Received empty image from server.");
-      }
-
+      const blob = await upscaleImage({ file, scale });
       const url = URL.createObjectURL(blob);
       setResultUrl(url);
 
       console.log("Upscaled image created:", url);
     } catch (err) {
-      let message = "Unable to upload image.";
-
-      if (axios.isAxiosError(err)) {
-        const data = err.response?.data;
-        if (data instanceof Blob) {
-          message = await data.text();
-        } else if (typeof data === "string") {
-          message = data;
-        } else if (data?.message) {
-          message = data.message;
-        } else {
-          message = err.message;
-        }
-      } else if (err instanceof Error) {
-        message = err.message;
-      }
-
+      const message = extractErrorMessage(err);
       console.error("Upload error:", message);
       setError(message);
     } finally {

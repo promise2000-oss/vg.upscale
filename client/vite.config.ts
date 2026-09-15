@@ -6,7 +6,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/upscale": {
-        target: "https://vgupscale-production.up.railway.app",
+        target: "https://vg-upscale.onrender.com",
         changeOrigin: true,
       },
     },
