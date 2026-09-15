@@ -7,7 +7,7 @@ const fs = require("fs");
 const favicon = require("serve-favicon");
 const swaggerUi = require("swagger-ui-express");
 const swaggerDocument = require("./swagger.json");
-const sharp = require("sharp");
+const { cpuUpscale } = require("./lib/upscale-cpu");
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -100,23 +100,8 @@ app.post("/upscale", upload.single("image"), async (req, res) => {
     });
 
   const runCpuUpscale = async () => {
-    console.log("Falling back to CPU upscaling with sharp (enhanced pipeline)");
-    const metadata = await sharp(inputPath).metadata();
-    const newWidth = metadata.width * scale;
-    const newHeight = metadata.height * scale;
-
-    await sharp(inputPath)
-      .resize(newWidth, newHeight, {
-        kernel: sharp.kernel.lanczos3,
-        fit: "fill",
-      })
-      .sharpen({ sigma: 1.2, m1: 1.5, m2: 0.5 })
-      .normalise()
-      .modulate({ brightness: 1.02, contrast: 1.05 })
-      .png({ quality: 100 })
-      .toFile(outputPath);
-
-    return outputPath;
+    console.log("Falling back to CPU multi-pass upscaling");
+    return cpuUpscale(inputPath, outputPath, scale);
   };
 
   try {
