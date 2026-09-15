@@ -11,9 +11,13 @@ const { cpuUpscale } = require("./lib/upscale-cpu");
 
 let onnxUpscale = null;
 try {
-  const mod = require("./lib/upscale-onnx");
-  onnxUpscale = mod.onnxUpscale;
-  console.log("ONNX upscaler loaded successfully");
+  if (process.env.USE_ONNX === "true") {
+    const mod = require("./lib/upscale-onnx");
+    onnxUpscale = mod.onnxUpscale;
+    console.log("ONNX upscaler loaded successfully");
+  } else {
+    console.log("ONNX disabled (set USE_ONNX=true to enable)");
+  }
 } catch (e) {
   console.warn("ONNX upscaler unavailable:", e.message);
 }
