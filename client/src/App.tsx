@@ -1,4 +1,5 @@
 import { FormEvent, ChangeEvent, useMemo, useState } from "react";
+import axios from "axios";
 import { upscaleImage, extractErrorMessage, type Scale } from "./services/upscale";
 
 function App() {
@@ -47,7 +48,12 @@ function App() {
 
       console.log("Upscaled image created:", url);
     } catch (err) {
-      const message = extractErrorMessage(err);
+      let message = extractErrorMessage(err);
+
+      if (axios.isAxiosError(err) && err.code === "ECONNABORTED") {
+        message = "Server is waking up, please try again in a moment.";
+      }
+
       console.error("Upload error:", message);
       setError(message);
     } finally {
